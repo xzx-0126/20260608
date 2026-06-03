@@ -2,6 +2,7 @@ let handpose;
 let video;
 let predictions = [];
 let fingerTrail = [];
+let modelReady = false; // 新增：追蹤模型是否載入完成
 const TRAIL_LENGTH = 10; // 記錄最近 10 影格的座標
 
 function setup() {
@@ -28,6 +29,7 @@ function setup() {
 
 function modelLoaded() {
   console.log("Handpose model loaded!");
+  modelReady = true; // 模型載入完成後設為 true
 }
 
 function gotHands(results) {
@@ -88,6 +90,18 @@ function draw() {
     }
   }
   pop(); // 結束鏡像翻轉區塊
+
+  // 當沒有偵測到手時，在左上角顯示模型載入狀態
+  if (predictions.length === 0) {
+    push();
+    fill(255, 255, 0); // 使用黃色文字
+    noStroke();
+    textAlign(LEFT, TOP);
+    textSize(20);
+    let statusText = modelReady ? "模型狀態：已就緒 (Ready)" : "模型狀態：載入中... (Loading)";
+    text(statusText, 20, 20);
+    pop();
+  }
 }
 
 // 當視窗大小改變時，調整畫布和視訊的大小
