@@ -52,8 +52,13 @@ function draw() {
   // 確保每一幀都先清空畫布，避免產生黃色軌跡
   background(255);
 
-  // 繪製攝影機畫面
-  image(video, 0, 0, width, height);
+  // --- 進入鏡像繪製區塊 ---
+  push();
+  translate(width, 0);
+  scale(-1, 1);
+
+  // 繪製攝影機畫面 (現在會是鏡像的)
+  image(video, 0, 0, width, height); 
 
   // 2. 偵測邏輯
   if (predictions.length > 0) {
@@ -92,8 +97,13 @@ function draw() {
     if (trail.length > 0) trail.splice(0, 1);
   }
 
-  // --- 繪製手部特效 ---
+  // --- 繪製手部特效 (在鏡像座標系下) ---
   if (predictions.length > 0) {
+    // 由於我們在 mirrored 區塊內，這裡的繪製會自動反映在正確的鏡像位置
+    // 所有的 x 座標會因為 scale(-1, 1) 自動轉向
+    // 例如：偵測點在左邊 (x=100)，畫面翻轉後會畫在視覺上的右邊，
+    // 但因為攝影機畫面也翻轉了，兩者會完美重合。
+
     let lastPt = trail[trail.length - 1];
     fill(0, 255, 0);
     noStroke();
@@ -110,35 +120,12 @@ function draw() {
       line(p1.x, p1.y, p2.x, p2.y);
     }
   }
-
-  // 狀態列
-  fill(0);
-  noStroke();
-  textSize(14);
-  textAlign(LEFT);
-  let statusText = !modelLoaded ? "🔄 模型載入中..." : (predictions.length > 0 ? "✅ 偵測中 (手部已發現)" : "❌ 未偵測到手部");
-  text("狀態: " + statusText, 20, 30);
   
-  if (gameState === "WAITING") {
-    textAlign(CENTER);
-    textSize(24);
-    fill(0);
-    text(!modelLoaded ? "Model Loading..." : "Ready! Please show your hand.", width / 2, height / 2);
-    textSize(16);
-    text("Please show your hand to the camera to start", width / 2, height / 2 + 40);
-
-  } else if (gameState === "PLAY") {
+  // --- 遊戲物件更新與繪製 (在鏡像座標系下) ---
+  if (gameState === "PLAY") {
     // --- 更新與繪製遊戲物件 (水果與粒子) ---
-    // 1. 更新倒數計時
-    let elapsed = floor((millis() - gameStartTime) / 1000);
-    timer = 60 - elapsed;
-    if (timer <= 0) {
-      timer = 0;
-      gameState = "GAMEOVER";
-    }
-
-    // 2. 水果生成
-    if (frameCount % 45 === 0) { // 稍微加快噴發速度 (約 0.75 秒一顆)
+    // 1. 水果生成
+    if (frameCount % 45 === 0) { 
       fruits.push(new Fruit());
     }
 
@@ -147,10 +134,9 @@ function draw() {
       fruits[i].update();
       fruits[i].display();
 
-      // 切割碰撞判定 (傳入整個軌跡陣列)
+      // 切割碰撞判定
       if (fruits[i].checkSliced(trail)) {
         score += 10;
-        // 噴發粒子
         for (let k = 0; k < random(15, 20); k++) {
           particles.push(new Particle(fruits[i].x, fruits[i].y, fruits[i].color));
         }
@@ -170,6 +156,36 @@ function draw() {
       if (particles[i].finished()) {
         particles.splice(i, 1);
       }
+    }
+  }
+  
+  // --- 結束鏡像區塊 (回歸正常座標系，準備畫文字) ---
+  pop();
+
+  // --- 繪製 UI 與文字 (非鏡像) ---
+  // 狀態列
+  fill(0);
+  noStroke();
+  textSize(14);
+  textAlign(LEFT);
+  let statusText = !modelLoaded ? "🔄 模型載入中..." : (predictions.length > 0 ? "✅ 偵測中 (手部已發現)" : "❌ 未偵測到手部");
+  text("狀態: " + statusText, 20, 30);
+
+  if (gameState === "WAITING") {
+    textAlign(CENTER);
+    textSize(24);
+    fill(0);
+    text(!modelLoaded ? "Model Loading..." : "Ready! Please show your hand.", width / 2, height / 2);
+    textSize(16);
+    text("Please show your hand to the camera to start", width / 2, height / 2 + 40);
+
+  } else if (gameState === "PLAY") {
+    // 更新倒數計時
+    let elapsed = floor((millis() - gameStartTime) / 1000);
+    timer = 60 - elapsed;
+    if (timer <= 0) {
+      timer = 0;
+      gameState = "GAMEOVER";
     }
 
     // 5. 顯示分數與時間
