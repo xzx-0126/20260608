@@ -68,6 +68,11 @@ function draw() {
     if (fingerTrail.length > TRAIL_LENGTH) {
       fingerTrail.shift(); // 移除最舊的點
     }
+
+    // 在食指尖端畫一個綠色點 (在鏡像座標系內繪製)
+    fill(0, 255, 0);
+    noStroke();
+    circle(indexFingerTip.x, indexFingerTip.y, 15);
   } else {
     // 手消失時，讓軌跡慢慢縮減消失，而不是直接清空（更有動感）
     if (fingerTrail.length > 0) fingerTrail.shift();
@@ -91,17 +96,16 @@ function draw() {
   }
   pop(); // 結束鏡像翻轉區塊
 
-  // 當沒有偵測到手時，在左上角顯示模型載入狀態
-  if (predictions.length === 0) {
-    push();
-    fill(255, 255, 0); // 使用黃色文字
-    noStroke();
-    textAlign(LEFT, TOP);
-    textSize(20);
-    let statusText = modelReady ? "模型狀態：已就緒 (Ready)" : "模型狀態：載入中... (Loading)";
-    text(statusText, 20, 20);
-    pop();
-  }
+  // 始終在左上角顯示狀態資訊 (放在 pop 之後確保文字不會被鏡像翻轉)
+  push();
+  fill(255, 255, 0); // 使用黃色文字
+  noStroke();
+  textAlign(LEFT, TOP);
+  textSize(20);
+  let modelStatus = modelReady ? "模型：已就緒" : "模型：載入中...";
+  let handStatus = (predictions.length > 0) ? "偵測：已找到手" : "偵測：未發現手";
+  text(`${modelStatus} | ${handStatus}`, 20, 20);
+  pop();
 }
 
 // 當視窗大小改變時，調整畫布和視訊的大小
