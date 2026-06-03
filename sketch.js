@@ -52,13 +52,12 @@ function draw() {
   // 確保每一幀都先清空畫布，避免產生黃色軌跡
   background(255);
 
-  // --- 進入鏡像繪製區塊 ---
-  push();
+  // 1. 處理水平鏡像：將畫布原點移至右側並翻轉 X 軸
   translate(width, 0);
   scale(-1, 1);
 
-  // 繪製攝影機畫面 (現在會是鏡像的)
-  image(video, 0, 0, width, height); 
+  // 繪製攝影機畫面
+  image(video, 0, 0, width, height);
 
   // 2. 偵測邏輯
   if (predictions.length > 0) {
@@ -68,7 +67,7 @@ function draw() {
     // 3. 更新食指尖端座標 (新版資料結構：hand.index_finger_tip)
     let indexFinger = hand.index_finger_tip;
     
-    // 更新食指軌跡座標 (直接使用原始座標)
+    // 直接儲存原始座標，因為在鏡像區塊內繪製時會自動對齊
     trail.push({ x: indexFinger.x, y: indexFinger.y });
     if (trail.length > 10) {
       trail.shift(); // 保持陣列長度為 10，移除最舊的座標
@@ -97,13 +96,9 @@ function draw() {
     if (trail.length > 0) trail.splice(0, 1);
   }
 
-  // --- 繪製手部特效 (在鏡像座標系下) ---
+  // --- [A] 鏡像繪製區塊 (包含手部特效、水果、粒子) ---
+  // 這裡的座標系已經是鏡像的，直接繪製 raw 座標即可對齊畫面
   if (predictions.length > 0) {
-    // 由於我們在 mirrored 區塊內，這裡的繪製會自動反映在正確的鏡像位置
-    // 所有的 x 座標會因為 scale(-1, 1) 自動轉向
-    // 例如：偵測點在左邊 (x=100)，畫面翻轉後會畫在視覺上的右邊，
-    // 但因為攝影機畫面也翻轉了，兩者會完美重合。
-
     let lastPt = trail[trail.length - 1];
     fill(0, 255, 0);
     noStroke();
@@ -120,23 +115,22 @@ function draw() {
       line(p1.x, p1.y, p2.x, p2.y);
     }
   }
-  
-  // --- 遊戲物件更新與繪製 (在鏡像座標系下) ---
+
   if (gameState === "PLAY") {
-    // --- 更新與繪製遊戲物件 (水果與粒子) ---
-    // 1. 水果生成
+    // 水果生成
     if (frameCount % 45 === 0) { 
       fruits.push(new Fruit());
     }
 
-    // 3. 更新水果 (需在反轉的坐標系下繪製，所以水果類別內的 display 不需要 translate)
+    // 更新並繪製所有水果
     for (let i = fruits.length - 1; i >= 0; i--) {
       fruits[i].update();
       fruits[i].display();
 
-      // 切割碰撞判定
+      // 切割碰撞判定：直接使用 trail 陣列判定 (都在鏡像環境下，座標一致)
       if (fruits[i].checkSliced(trail)) {
         score += 10;
+        // 噴發粒子
         for (let k = 0; k < random(15, 20); k++) {
           particles.push(new Particle(fruits[i].x, fruits[i].y, fruits[i].color));
         }
@@ -149,7 +143,7 @@ function draw() {
       }
     }
 
-    // 4. 更新粒子
+    // 更新與繪製粒子
     for (let i = particles.length - 1; i >= 0; i--) {
       particles[i].update();
       particles[i].display();
@@ -158,11 +152,12 @@ function draw() {
       }
     }
   }
-  
-  // --- 結束鏡像區塊 (回歸正常座標系，準備畫文字) ---
-  pop();
 
-  // --- 繪製 UI 與文字 (非鏡像) ---
+  // --- [B] UI 文字區塊 (需取消鏡像，確保文字不反轉) ---
+  push();
+  scale(-1, 1);
+  translate(-width, 0);
+
   // 狀態列
   fill(0);
   noStroke();
@@ -170,7 +165,7 @@ function draw() {
   textAlign(LEFT);
   let statusText = !modelLoaded ? "🔄 模型載入中..." : (predictions.length > 0 ? "✅ 偵測中 (手部已發現)" : "❌ 未偵測到手部");
   text("狀態: " + statusText, 20, 30);
-
+  
   if (gameState === "WAITING") {
     textAlign(CENTER);
     textSize(24);
@@ -211,6 +206,7 @@ function draw() {
     text("Final Score: " + score, width / 2, height / 2 + 50);
     text("Open Hand to Restart", width / 2, height / 2 + 100);
   }
+  pop();
 }
 
 // --- 水果類別設計 ---
