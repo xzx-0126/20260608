@@ -67,28 +67,14 @@ function draw() {
     // 3. 更新食指尖端座標 (新版資料結構：hand.index_finger_tip)
     let indexFinger = hand.index_finger_tip;
     
-    // 更新食指軌跡座標
-    trail.push({ x: indexFinger.x, y: indexFinger.y });
+    // 將座標水平翻轉，使其與鏡像後的畫面位置一致
+    let mx = width - indexFinger.x;
+    let my = indexFinger.y;
+
+    // 更新食指軌跡座標 (儲存翻轉後的座標)
+    trail.push({ x: mx, y: my });
     if (trail.length > 10) {
       trail.shift(); // 保持陣列長度為 10，移除最舊的座標
-    }
-
-    // 在食指尖端畫一個小圓點，方便確認偵測位置
-    fill(0, 255, 0);
-    noStroke();
-    ellipse(indexFinger.x, indexFinger.y, 15, 15);
-
-    // 繪製刀光特效：連點成線，並隨新舊程度調整粗細與透明度
-    noFill();
-    for (let i = 0; i < trail.length - 1; i++) {
-      let p1 = trail[i];
-      let p2 = trail[i + 1];
-      // i 越大代表座標越新。我們讓 alpha 與重量隨 i 增加
-      let alpha = map(i, 0, trail.length - 1, 0, 255);
-      let weight = map(i, 0, trail.length - 1, 1, 12);
-      stroke(255, 255, 255, alpha); // 白色發光特效
-      strokeWeight(weight);
-      line(p1.x, p1.y, p2.x, p2.y);
     }
 
     // 檢查是否「手部打開」以重新開始遊戲
@@ -118,6 +104,25 @@ function draw() {
   push();
   scale(-1, 1);
   translate(-width, 0);
+
+  // --- 在正常座標系中繪製手部特效 (因為 trail 已經修正過) ---
+  if (predictions.length > 0) {
+    let lastPt = trail[trail.length - 1];
+    fill(0, 255, 0);
+    noStroke();
+    ellipse(lastPt.x, lastPt.y, 15, 15); // 綠色指尖點
+
+    noFill();
+    for (let i = 0; i < trail.length - 1; i++) {
+      let p1 = trail[i];
+      let p2 = trail[i + 1];
+      let alpha = map(i, 0, trail.length - 1, 0, 255);
+      let weight = map(i, 0, trail.length - 1, 1, 12);
+      stroke(255, 255, 255, alpha);
+      strokeWeight(weight);
+      line(p1.x, p1.y, p2.x, p2.y);
+    }
+  }
 
   // 狀態列
   fill(0);
@@ -237,11 +242,18 @@ class Fruit {
     }
   }
 
-  // 檢查切割邏輯：指尖或軌跡線段是否碰到水果
+  // 檢查切割邏輯：只要指尖碰到邊緣或軌跡劃過就算
   checkSliced(trail) {
-    if (trail.length < 2) return false;
+    if (trail.length === 0) return false;
 
-    // 遍歷軌跡中的每一條線段
+    // 1. 優先檢查：最新的一個點是否在水果範圍內 (只要碰到邊緣就標記為切碎)
+    let tip = trail[trail.length - 1];
+    if (dist(tip.x, tip.y, this.x, this.y) < this.radius) {
+      this.isSliced = true;
+      return true;
+    }
+
+    // 2. 輔助檢查：遍歷軌跡中的線段，處理高速揮動的情況
     for (let j = 1; j < trail.length; j++) {
       let p1 = trail[j - 1];
       let p2 = trail[j];
