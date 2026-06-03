@@ -52,10 +52,6 @@ function draw() {
   // 確保每一幀都先清空畫布，避免產生黃色軌跡
   background(255);
 
-  // 1. 處理水平鏡像：將畫布原點移至右側並翻轉 X 軸
-  translate(width, 0);
-  scale(-1, 1);
-
   // 繪製攝影機畫面
   image(video, 0, 0, width, height);
 
@@ -67,12 +63,8 @@ function draw() {
     // 3. 更新食指尖端座標 (新版資料結構：hand.index_finger_tip)
     let indexFinger = hand.index_finger_tip;
     
-    // 將座標水平翻轉，使其與鏡像後的畫面位置一致
-    let mx = width - indexFinger.x;
-    let my = indexFinger.y;
-
-    // 更新食指軌跡座標 (儲存翻轉後的座標)
-    trail.push({ x: mx, y: my });
+    // 更新食指軌跡座標 (直接使用原始座標)
+    trail.push({ x: indexFinger.x, y: indexFinger.y });
     if (trail.length > 10) {
       trail.shift(); // 保持陣列長度為 10，移除最舊的座標
     }
@@ -100,12 +92,7 @@ function draw() {
     if (trail.length > 0) trail.splice(0, 1);
   }
 
-  // --- 處理所有文字與 UI 顯示 (需翻轉回來，讓文字不是鏡像) ---
-  push();
-  scale(-1, 1);
-  translate(-width, 0);
-
-  // --- 在正常座標系中繪製手部特效 (因為 trail 已經修正過) ---
+  // --- 繪製手部特效 ---
   if (predictions.length > 0) {
     let lastPt = trail[trail.length - 1];
     fill(0, 255, 0);
@@ -208,7 +195,6 @@ function draw() {
     text("Final Score: " + score, width / 2, height / 2 + 50);
     text("Open Hand to Restart", width / 2, height / 2 + 100);
   }
-  pop();
 }
 
 // --- 水果類別設計 ---
