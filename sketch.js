@@ -9,6 +9,7 @@ let score = 0; // 分數
 let timer = 60; // 倒數計時
 let modelLoaded = false; // 用於自我檢查模型載入狀態
 let gameStartTime = 0; // 記錄遊戲開始時間
+let waitingStartTime = 0; // 記錄進入等待狀態的時間
 let gameState = "WAITING"; // 遊戲狀態：WAITING, PLAY, GAMEOVER
 
 function setup() {
@@ -98,13 +99,13 @@ function draw() {
                    hand.pinky_finger_tip.y < hand.pinky_finger_pip.y;
       
       if (isOpen) {
-        resetGame();
-        gameState = "PLAY";
+        resetGame(); // resetGame 會將 gameState 設為 "WAITING"
+        waitingStartTime = millis(); // 記錄進入等待狀態的時間點
       }
     }
 
     // 如果目前在等待狀態且偵測到手，就開始遊戲
-    if (gameState === "WAITING") {
+    if (gameState === "WAITING" && millis() - waitingStartTime > 1000) {
       gameState = "PLAY";
       gameStartTime = millis();
     }
@@ -154,18 +155,15 @@ function draw() {
       fruits[i].update();
       fruits[i].display();
 
-      // 切割碰撞判定
-      if (trail.length >= 2) {
-        let tip = trail[trail.length - 1];
-        if (fruits[i].checkSliced(tip)) {
-          score += 10;
-          // 噴發粒子
-          for (let k = 0; k < random(15, 20); k++) {
-            particles.push(new Particle(fruits[i].x, fruits[i].y, fruits[i].color));
-          }
-          fruits.splice(i, 1);
-          continue;
+      // 切割碰撞判定 (傳入整個軌跡陣列)
+      if (fruits[i].checkSliced(trail)) {
+        score += 10;
+        // 噴發粒子
+        for (let k = 0; k < random(15, 20); k++) {
+          particles.push(new Particle(fruits[i].x, fruits[i].y, fruits[i].color));
         }
+        fruits.splice(i, 1);
+        continue;
       }
 
       if (fruits[i].offScreen()) {
@@ -203,7 +201,7 @@ function draw() {
     noStroke();
     textSize(24);
     text("Final Score: " + score, width / 2, height / 2 + 50);
-    text("Open Hand to Restart", width / 2, height / 2 + 50);
+    text("Open Hand to Restart", width / 2, height / 2 + 100);
   }
   pop();
 }
@@ -239,16 +237,39 @@ class Fruit {
     }
   }
 
-  // 檢查切割邏輯：指尖是否進入水果範圍
-  checkSliced(tip) {
-    // 由於我們在繪製時做了鏡像翻轉，但 trail 記錄的是原始偵測坐標
-    // 水果物件的 X 是隨機生成的，這裡需要計算指尖與水果的距離
-    let d = dist(tip.x, tip.y, this.x, this.y);
-    if (d < this.radius * 1.15) { // 補償 1.15 倍判定範圍
-      this.isSliced = true;
-      return true;
+  // 檢查切割邏輯：指尖或軌跡線段是否碰到水果
+  checkSliced(trail) {
+    if (trail.length < 2) return false;
+
+    // 遍歷軌跡中的每一條線段
+    for (let j = 1; j < trail.length; j++) {
+      let p1 = trail[j - 1];
+      let p2 = trail[j];
+      
+      // 使用線段與圓形的碰撞偵測
+      if (this.lineCircleIntersect(p1.x, p1.y, p2.x, p2.y, this.x, this.y, this.radius)) {
+        this.isSliced = true;
+        return true;
+      }
     }
     return false;
+  }
+
+  // 線段與圓形碰撞偵測輔助函數
+  lineCircleIntersect(x1, y1, x2, y2, cx, cy, r) {
+    // 計算線段長度平方
+    let lenSq = pow(x2 - x1, 2) + pow(y2 - y1, 2);
+    if (lenSq === 0) return dist(x1, y1, cx, cy) < r;
+
+    // 取得圓心投影在直線上的比例 t，並限制在 0~1 (線段範圍內)
+    let t = constrain(((cx - x1) * (x2 - x1) + (cy - y1) * (y2 - y1)) / lenSq, 0, 1);
+    
+    // 找到線段上距離圓心最近的點座標
+    let closestX = x1 + t * (x2 - x1);
+    let closestY = y1 + t * (y2 - y1);
+
+    // 檢查該最近點與圓心的距離是否小於半徑 (回歸原大小)
+    return dist(cx, cy, closestX, closestY) < r;
   }
 
   // 檢查是否掉出畫面底部
