@@ -83,7 +83,9 @@ function draw() {
                    hand.ring_finger_tip.y < hand.ring_finger_pip.y;
       
       if (isOpen) {
-        resetGame(); // resetGame 會將 gameState 設為 "WAITING"
+        resetGame();
+        gameState = "PLAY"; // 直接進入遊戲狀態
+        gameStartTime = millis(); // 重新記錄遊戲開始時間
       }
     }
 
@@ -99,7 +101,8 @@ function draw() {
 
   // --- [A] 鏡像繪製區塊 (包含手部特效、水果、粒子) ---
   // 這裡的座標系已經是鏡像的，直接繪製 raw 座標即可對齊畫面
-  if (predictions.length > 0) {
+  // 修正：增加 trail.length > 0 檢查，避免 resetGame 清空陣列後讀取 lastPt 導致卡住
+  if (predictions.length > 0 && trail.length > 0) {
     let lastPt = trail[trail.length - 1];
     fill(0, 255, 0);
     noStroke();
