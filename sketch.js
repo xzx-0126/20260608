@@ -46,6 +46,7 @@ function resetGame() {
   score = 0;
   timer = 60;
   gameState = "WAITING";
+  waitingStartTime = millis(); // 每次重置遊戲都重新計算等待時間
 }
 
 function draw() {
@@ -82,7 +83,6 @@ function draw() {
       
       if (isOpen) {
         resetGame(); // resetGame 會將 gameState 設為 "WAITING"
-        waitingStartTime = millis(); // 記錄進入等待狀態的時間點
       }
     }
 
