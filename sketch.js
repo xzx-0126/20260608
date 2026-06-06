@@ -76,10 +76,11 @@ function draw() {
 
     // 檢查是否「手部打開」以重新開始遊戲
     if (gameState === "GAMEOVER") {
-      let isOpen = hand.index_finger_tip.y < hand.index_finger_pip.y &&
+      // 增加安全檢查，確保節點資料存在
+      let isOpen = hand.index_finger_tip && hand.index_finger_pip && 
+                   hand.index_finger_tip.y < hand.index_finger_pip.y &&
                    hand.middle_finger_tip.y < hand.middle_finger_pip.y &&
-                   hand.ring_finger_tip.y < hand.ring_finger_pip.y &&
-                   hand.pinky_finger_tip.y < hand.pinky_finger_pip.y;
+                   hand.ring_finger_tip.y < hand.ring_finger_pip.y;
       
       if (isOpen) {
         resetGame(); // resetGame 會將 gameState 設為 "WAITING"
